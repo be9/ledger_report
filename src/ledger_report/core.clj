@@ -7,8 +7,9 @@
   (:gen-class))
 
 (def cli-options
-  [["-f" "--file FILE" "Файл ledger"             :default "123.txt"]
-   ["-m" "--meta FILE" "Файл с описанием счетов" :default "accounts.edn"]])
+  [["-f" "--file=FILE"   "Файл ledger"             :default "my.ldg"]
+   ["-m" "--meta=FILE"   "Файл с описанием счетов" :default "accounts.edn"]
+   ["-p" "--prices=FILE" "Файл с котировками"]])
 
 (defn read-edn
   "Открывает и читает файл данных filename в формате EDN. Возвращает прочитанную
@@ -33,7 +34,7 @@
         metadata  (read-edn (:meta options))]
 
     (assoc options :metadata (or metadata empty-metadata)
-                   :currency mc/RUR)))
+                   :currency mc/RUB)))
 
 (defn -main
   [& args]

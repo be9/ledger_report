@@ -2,16 +2,32 @@
   (:require [clojure.tools.cli          :refer [parse-opts]]
             [clojure.java.io            :as io]
             [clojure.string             :as s]
-            [clojurewerkz.money.amounts :as ma]))
+            [clojurewerkz.money.amounts :as ma]
+            [me.raynes.conch            :refer [with-programs] :as sh]
+            [ledger-report.formatters.table :as table]))
 
 (defn ledger-results
   "Возвращает результат, возвращённый ledger, как вектор строк.
    Каждая строка имеет формат:
 
    имя счёта\tсумма"
-  [filename]
-  (with-open [rdr (io/reader filename)]
-    (into [] (line-seq rdr))))
+  [opts]
+
+  (with-programs [ledger]
+    (let [ledger-options ["-f"       (:file opts)
+                          "--period" (:period opts)
+                          "--related"
+                          "--register-format"
+                          "%(display_account)\t%(quantity(market(display_amount,d,\"р\")))\n"
+                          "--display"
+                          "not has_tag(\"SkipCashFlow\")"]
+          ledger-options  (if-let [pricedb (:prices opts)]
+                            (conj ledger-options "--price-db" pricedb)
+                            ledger-options)
+
+          cmd (conj ledger-options "register" "Активы")]
+
+    (s/split (apply ledger cmd) #"\n"))))
 
 ;;
 
@@ -60,7 +76,6 @@
   "Отбирает из данных поступления, группирует их по статьям и возвращает map
    Статья -> Сумма"
   [data metadata]
-  (println "earnings")
   (collapse-accounts
     (filter #(ma/negative? (% 1)) data)  ; отбираем только отрицательные величины
     (:earnings metadata)
@@ -93,20 +108,31 @@
                 [group-name value (/ (double (.getAmount value))
                                      amount-total)]))
             sorted)
-      [:total (ma/abs total) 100])))
+      [:total (ma/abs total) 1])))
 ;;
 
 (def cli-options
-  [["-p" "--period PERIOD" "За какой период показывать"]])
+  [["-p" "--period=PERIOD" "За какой период показывать" :required true]
+   ["-n" "--no-group"      "Не группировать счета"]])
 
 (defn cashflow
   [config args]
   (let [opts     (parse-opts args cli-options)
-        results  (parse-ledger-results (ledger-results (:file config))
+        merged-options (merge config (:options opts))
+        results  (parse-ledger-results (ledger-results merged-options)
                                        (:currency config))
         metadata (config :metadata)
         earnings (process-account-data (earnings-data results metadata))
-        payments (process-account-data (payments-data results metadata))]
+        payments (process-account-data (payments-data results metadata))
+        delta    (ma/minus ((last earnings) 1)
+                           ((last payments) 1))]
 
-    (println earnings)  
-    (println payments)))
+    (println "Доходы:")
+    (println (s/join "\n" (table/formatter earnings)))
+    (println "\n")
+
+    (println "Расходы:")
+    (println (s/join "\n" (table/formatter payments)))
+
+    (println)
+    (println "Доходы — Расходы =" (table/format-value delta))))
