@@ -59,24 +59,38 @@
         (recur (pop prefix))))))    ; Пытаемся найти максимальный префикс
 
 (defn collapse-accounts
-  "Объединяет данные по отдельным счетам в один большой map"
-  [data account-map default-name]
+  "Группирует данные по отдельным счетам в один большой map. grouper возвращает имя
+   группы для каждого счёта"
+  [data grouper]
 
   (reduce
     (fn [accounts [acc value]]
-      (let [group (group-name-for-account acc account-map default-name)]
-
+      (let [group (grouper acc)]
         (if-let [accum (accounts group)]
           (assoc accounts group (ma/plus accum value))
           (assoc accounts group value))))
     {}
     data))
 
+(defn collapse-by-group
+  [data account-map default-name]
+  (let [grouper (fn [x] (group-name-for-account x account-map default-name))]
+
+    (collapse-accounts data grouper)))
+
+
+(defn collapse-by-name
+  [data account-map default-name]
+
+  (let [grouper (fn [x] (s/join ":" x))]
+
+    (collapse-accounts data grouper)))
+
 (defn earnings-data
   "Отбирает из данных поступления, группирует их по статьям и возвращает map
    Статья -> Сумма"
-  [data metadata]
-  (collapse-accounts
+  [collapser data metadata]
+  (collapser
     (filter #(ma/negative? (% 1)) data)  ; отбираем только отрицательные величины
     (:earnings metadata)
     "Прочие доходы"))
@@ -84,8 +98,8 @@
 (defn payments-data
   "Отбирает из данных траты, группирует их по статьям и возвращает map
    Статья -> Сумма"
-  [data metadata]
-  (collapse-accounts
+  [collapser data metadata]
+  (collapser
     (filter #(ma/positive? (% 1)) data)  ; отбираем только положительные величины
     (:payments metadata)
     "Прочие выплаты"))
@@ -117,15 +131,16 @@
 
 (defn cashflow
   [config args]
-  (let [opts     (parse-opts args cli-options)
+  (let [opts      (parse-opts args cli-options)
         merged-options (merge config (:options opts))
-        results  (parse-ledger-results (ledger-results merged-options)
+        results   (parse-ledger-results (ledger-results merged-options)
                                        (:currency config))
-        metadata (config :metadata)
-        earnings (process-account-data (earnings-data results metadata))
-        payments (process-account-data (payments-data results metadata))
-        delta    (ma/minus ((last earnings) 1)
-                           ((last payments) 1))]
+        metadata  (config :metadata)
+        collapser (if (:no-group merged-options) collapse-by-name collapse-by-group)
+        earnings  (process-account-data (earnings-data collapser results metadata))
+        payments  (process-account-data (payments-data collapser results metadata))
+        delta     (ma/minus ((last earnings) 1)
+                            ((last payments) 1))]
 
     (println "Доходы:")
     (println (s/join "\n" (table/formatter earnings)))
