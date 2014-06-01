@@ -3,7 +3,7 @@
             [clojure.java.io            :as io]
             [clojure.string             :as s]
             [clojurewerkz.money.amounts :as ma]
-            [me.raynes.conch            :refer [with-programs] :as sh]
+            [ledger-report.ledger-interface :as ledger]
             [ledger-report.formatters.table :as table]))
 
 (defn ledger-results
@@ -13,22 +13,16 @@
    имя счёта\tсумма"
   [opts]
 
-  (with-programs [ledger]
-    (let [ledger-options ["-f"       (:file opts)
-                          "--period" (:period opts)
-                          "--related"
-                          "--register-format"
-                          "%(display_account)\t%(quantity(market(display_amount,d,\"р\")))\n"
-                          "--display"
-                          "not has_tag(\"SkipCashFlow\")"]
-          ledger-options  (if-let [pricedb (:prices opts)]
-                            (conj ledger-options "--price-db" pricedb)
-                            ledger-options)
-
-          cmd (conj ledger-options "register" "Активы")]
-
-    (s/split (apply ledger cmd) #"\n"))))
-
+  (ledger/register
+    "Активы"
+    {
+     :file   (:file opts)
+     :period (:period opts)
+     :prices (:prices opts)
+     :related true
+     :register-format "%(display_account)\t%(quantity(market(display_amount,d,\"р\")))\n"
+     :display "not has_tag(\"SkipCashFlow\")"
+     }))
 ;;
 
 (defn parse-ledger-results
