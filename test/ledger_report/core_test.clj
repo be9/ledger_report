@@ -2,6 +2,6 @@
   (:require [clojure.test :refer :all]
             [ledger-report.core :refer :all]))
 
-(deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 0 1))))
+#_(deftest coretest
+  (testing "Year is parsed"
+    (is (= (parse-period "2014") []))))
