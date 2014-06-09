@@ -1,6 +1,6 @@
 (ns ledger-report.ledger-interface
-  (:require [me.raynes.conch :refer [with-programs] :as sh]
-            [clojure.string :as s]
+  (:require [me.raynes.conch     :refer [with-programs] :as sh]
+            [clojure.string      :as s]
             [ledger-report.dates :refer [iso-date]]))
 
 (def option-mapping {
@@ -12,25 +12,29 @@
   :prices           "--price-db"
   })
 
-(defn format-date-range
+(defn- format-date-range
   [beg end]
-  (str "from " (iso-date beg) " until " (iso-date end)))
+  (let [from-part  (when beg
+                     (str "from " (iso-date beg)))
+        until-part (when end
+                     (str "until " (iso-date end)))]
+
+    (s/trim (str from-part " " until-part))))
 
 (def option-value-formatting
   {
     :period (fn [p] (if (vector? p)
                       (apply format-date-range p)
                       p))
-   })
+  })
 
-(defn preformat-value
+(defn- preformat-value
   [k v]
-  (println k v)
   (if-let [formatter (option-value-formatting k)]
     (formatter v)
     v))
 
-(defn make-command-line
+(defn- make-command-line
   [opts]
   (reduce (fn [cmdline [k v]]
             (if-let [mapped-opt (option-mapping k)]
@@ -41,11 +45,21 @@
               (throw (IllegalArgumentException. (str "Invalid option " k)))))
           [] opts))
 
-(defn register
-  [expression opts]
+
+(defn- ledger-command
+  [command-name argument opts]
   (with-programs [ledger]
     (let [ledger-options (make-command-line opts)
-          _ (println ledger-options)
-          cmd (conj ledger-options "register" expression)]
+          cmd            (conj ledger-options command-name argument)]
 
     (s/split (apply ledger cmd) #"\n"))))
+
+;;
+
+(defn register
+  [expression opts]
+  (ledger-command "register" expression opts))
+
+(defn balance
+  [accounts opts]
+  (ledger-command "balance" accounts opts))
