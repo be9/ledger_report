@@ -13,7 +13,7 @@
     Date = Year <'/'> DigitMonth <'/'> Day
     Month = #'jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sep(tember)?|oct(ober)?|nov(ember)?|dec(ember)?'
     DigitMonth = #'0?[1-9]|1[12]'
-    Day = #'0?[1-9]|[12][0-9]|3[01]'
+    Day = #'[12][0-9]|3[01]|0?[1-9]'
     "))
 
 (defn current-year [] (t/year (t/today)))
@@ -49,7 +49,7 @@
         [beg end]))))
 
 (defn match-one-period
-  "Парсит "
+  "Парсит один временной период"
   [period]
   (match period
          [[:Year y]]                  (make-month-year-period y nil)
@@ -58,10 +58,12 @@
          [[:Month m]      [:Year y]]  (make-month-year-period y m)))
 
 (defn merge-periods
+  "Слияние двух периодов"
   [[a _] [_ b]]
   [a b])
 
 (defn parse-period
+  "Парсит одиночный период или диапазон"
   [period]
   (match (parser (s/lower-case period))
          [:Expression [:Period & beg] [:Period & end]]
@@ -71,3 +73,7 @@
          [:Expression [:Period & beg]]
          (match-one-period beg)
          ))
+
+(defn iso-date
+  [date]
+  (.toString date))

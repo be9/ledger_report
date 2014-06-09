@@ -4,6 +4,7 @@
             [clojure.string             :as s]
             [clojurewerkz.money.amounts :as ma]
             [ledger-report.ledger-interface :as ledger]
+            [ledger-report.dates :as dates]
             [ledger-report.formatters.table :as table]))
 
 (defn ledger-results
@@ -17,7 +18,7 @@
     "Активы"
     {
      :file   (:file opts)
-     :period (:period opts)
+     :period (dates/parse-period (:period opts))
      :prices (:prices opts)
      :related true
      :register-format "%(display_account)\t%(quantity(market(display_amount,d,\"р\")))\n"
