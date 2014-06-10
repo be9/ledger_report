@@ -8,9 +8,11 @@
   :period           "--period"
   :related          "--related"
   :register-format  "--register-format"
+  :balance-format   "--balance-format"
   :display          "--display"
   :prices           "--price-db"
-  })
+  :value            "-V"
+})
 
 (defn- format-date-range
   [beg end]

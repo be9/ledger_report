@@ -5,9 +5,10 @@
             [clojurewerkz.money.amounts :as ma]
             [ledger-report.ledger-interface :as ledger]
             [ledger-report.dates :as dates]
+            [ledger-report.formatters.currency :as fc]
             [ledger-report.formatters.table :as table]))
 
-(defn ledger-results
+(defn- register-results
   "Возвращает результат, возвращённый ledger, как вектор строк.
    Каждая строка имеет формат:
 
@@ -15,10 +16,10 @@
   [opts]
 
   (ledger/register
-    "Активы"
+    ((opts :metadata) :assets_for_cashflow)
     {
      :file   (:file opts)
-     :period (dates/parse-period (:period opts))
+     :period (:period opts)
      :prices (:prices opts)
      :related true
      :register-format "%(display_account)\t%(quantity(market(display_amount,d,\"р\")))\n"
@@ -26,22 +27,26 @@
      }))
 ;;
 
-(defn parse-ledger-results
+(defn- make-currency-amount
+  [s currency]
+  (ma/amount-of currency
+                (Float/parseFloat s)
+                java.math.RoundingMode/HALF_UP))
+
+(defn- parse-register-results
   "Возвращает вектор разобранных результатов ledger, где каждой строке
    соответствует: [[Расходы То Се] 123.45]"
   [bare-results currency]
   (map (fn [line]
          (let [[account value] (s/split line    #"\t")
                 acc-parts      (s/split account #":")
-                value          (ma/amount-of currency
-                                             (Float/parseFloat value)
-                                             java.math.RoundingMode/HALF_UP)]
+                value          (make-currency-amount value currency)]
             [acc-parts value]))
        bare-results))
 
 ;;
 
-(defn group-name-for-account
+(defn- group-name-for-account
   "Находит для account соответствие в account-map по префиксу.
    Если ничего не найдено, возвращает default-name"
   [account account-map default-name]
@@ -53,7 +58,7 @@
         group
         (recur (pop prefix))))))    ; Пытаемся найти максимальный префикс
 
-(defn collapse-accounts
+(defn- collapse-accounts
   "Группирует данные по отдельным счетам в один большой map. grouper возвращает имя
    группы для каждого счёта"
   [data grouper]
@@ -67,21 +72,19 @@
     {}
     data))
 
-(defn collapse-by-group
+(defn- collapse-by-group
   [data account-map default-name]
-  (let [grouper (fn [x] (group-name-for-account x account-map default-name))]
 
+  (let [grouper (fn [x] (group-name-for-account x account-map default-name))]
     (collapse-accounts data grouper)))
 
-
-(defn collapse-by-name
+(defn- collapse-by-name
   [data account-map default-name]
 
   (let [grouper (fn [x] (s/join ":" x))]
-
     (collapse-accounts data grouper)))
 
-(defn earnings-data
+(defn- earnings-data
   "Отбирает из данных поступления, группирует их по статьям и возвращает map
    Статья -> Сумма"
   [collapser data metadata]
@@ -90,7 +93,7 @@
     (:earnings metadata)
     "Прочие доходы"))
 
-(defn payments-data
+(defn- payments-data
   "Отбирает из данных траты, группирует их по статьям и возвращает map
    Статья -> Сумма"
   [collapser data metadata]
@@ -101,7 +104,7 @@
 
 ;;
 
-(defn process-account-data
+(defn- process-account-data
   "Сортирует account-data по убыванию, вычисляет итог и процентное соотношение.
    Возвращает вектор векторов [name value percentage]. Последним идет name :total"
   [account-data]
@@ -118,7 +121,25 @@
                                      amount-total)]))
             sorted)
       [:total (ma/abs total) 1])))
+
 ;;
+
+(defn- get-balance-for
+  "Рассчитывает баланс на заданную дату"
+  [date opts]
+  (->
+    ((opts :metadata) :assets_for_cashflow)
+    (ledger/balance {
+      :file   (:file opts)
+      :period [nil date]
+      :prices (:prices opts)
+      :value  true
+      :balance-format "%(partial_account(true))\t%(quantity(market(scrub(display_total),d,\"р\")))\n" })
+    (last)
+    (make-currency-amount (:currency opts))))
+
+;;
+
 
 (def cli-options
   [["-p" "--period=PERIOD" "За какой период показывать" :required true]
@@ -126,16 +147,23 @@
 
 (defn cashflow
   [config args]
-  (let [opts      (parse-opts args cli-options)
-        merged-options (merge config (:options opts))
-        results   (parse-ledger-results (ledger-results merged-options)
-                                       (:currency config))
+  (let [options   (parse-opts args cli-options)
+        options   (merge config (:options options))
+        options   (conj options
+                        [:period (dates/parse-period (:period options))])
+        results   (parse-register-results (register-results options)
+                                          (:currency config))
         metadata  (config :metadata)
-        collapser (if (:no-group merged-options) collapse-by-name collapse-by-group)
+        collapser (if (:no-group options) collapse-by-name collapse-by-group)
         earnings  (process-account-data (earnings-data collapser results metadata))
         payments  (process-account-data (payments-data collapser results metadata))
+        incoming  (get-balance-for (first (:period options)) options)
+        outgoing  (get-balance-for (last (:period options)) options)
         delta     (ma/minus ((last earnings) 1)
-                            ((last payments) 1))]
+                            ((last payments) 1))
+        asset-delta (ma/minus outgoing incoming)]
+
+    (println (str "Входящий остаток: " (fc/format-value incoming) "\n"))
 
     (println "Доходы:")
     (println (s/join "\n" (table/formatter earnings)))
@@ -144,5 +172,6 @@
     (println "Расходы:")
     (println (s/join "\n" (table/formatter payments)))
 
-    (println)
-    (println "Доходы — Расходы =" (table/format-value delta))))
+    (println "\nИсходящий остаток:" (fc/format-value outgoing))
+    (println "\nДоходы    — Расходы  =" (fc/format-value delta))
+    (println   "Исходящий — Входящий =" (fc/format-value asset-delta))))
