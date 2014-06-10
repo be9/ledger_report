@@ -25,7 +25,7 @@
    "october" 10, "oct" 10, "november" 11, "nov" 11, "december" 12, "dec" 12
   })
 
-(defn parse-month
+(defn- parse-month
   "Превращает строковое представление месяца в число от 1 до 12"
   [s]
   (if-let [index (month-names s)]
@@ -34,7 +34,7 @@
       (Integer/parseInt s)
       (throw (IllegalArgumentException. (str "Invalid month: " s))))))
 
-(defn make-month-year-period
+(defn- make-month-year-period
   "Делает период в 1 месяц или в 1 год, в зависимости от year и month, которые
    порознь могут быть nil"
   [year month]
@@ -48,16 +48,28 @@
             end (t/plus beg (t/years 1))]
         [beg end]))))
 
-(defn match-one-period
+(defn- make-one-day-period
+  "Однодневный период"
+  [year month day]
+  (let [year  (Integer/parseInt year)
+        month (Integer/parseInt month)
+        day   (Integer/parseInt day)
+        date  (t/local-date year month day)]
+
+    [date (t/plus date (t/days 1))]))
+
+(defn- match-one-period
   "Парсит один временной период"
   [period]
   (match period
          [[:Year y]]                  (make-month-year-period y nil)
          [[:Month m]]                 (make-month-year-period nil m)
          [[:DigitMonth m] [:Year y]]  (make-month-year-period y m)
-         [[:Month m]      [:Year y]]  (make-month-year-period y m)))
+         [[:Month m]      [:Year y]]  (make-month-year-period y m)
+         [[:Date [:Year y] [:DigitMonth m] [:Day d]]]
+                                      (make-one-day-period y m d)))
 
-(defn merge-periods
+(defn- merge-periods
   "Слияние двух периодов"
   [[a _] [_ b]]
   [a b])

@@ -107,21 +107,22 @@
 (defn- process-account-data
   "Сортирует account-data по убыванию, вычисляет итог и процентное соотношение.
    Возвращает вектор векторов [name value percentage]. Последним идет name :total"
-  [account-data]
+  [account-data zero]
 
-  (let [total        (ma/total (vals account-data))
-        amount-total (double (.getAmount (ma/abs total)))
-        ; сортировка по убывающей сумме
-        sorted       (sort-by #(ma/negated (ma/abs (% 1))) account-data)]
+  (if (empty? account-data)
+    [[:total zero 1]]
+    (let [total        (ma/total (vals account-data))
+          amount-total (double (.getAmount (ma/abs total)))
+          ; сортировка по убывающей сумме
+          sorted       (sort-by #(ma/negated (ma/abs (% 1))) account-data)]
 
-    (conj
-      (mapv (fn [[group-name value]]
-              (let [value (ma/abs value)]
-                [group-name value (/ (double (.getAmount value))
-                                     amount-total)]))
-            sorted)
-      [:total (ma/abs total) 1])))
-
+      (conj
+        (mapv (fn [[group-name value]]
+                (let [value (ma/abs value)]
+                  [group-name value (/ (double (.getAmount value))
+                                       amount-total)]))
+              sorted)
+        [:total (ma/abs total) 1]))))
 ;;
 
 (defn- get-balance-for
@@ -155,8 +156,9 @@
                                           (:currency config))
         metadata  (config :metadata)
         collapser (if (:no-group options) collapse-by-name collapse-by-group)
-        earnings  (process-account-data (earnings-data collapser results metadata))
-        payments  (process-account-data (payments-data collapser results metadata))
+        zero      (ma/amount-of (:currency config) 0)
+        earnings  (process-account-data (earnings-data collapser results metadata) zero)
+        payments  (process-account-data (payments-data collapser results metadata) zero)
         incoming  (get-balance-for (first (:period options)) options)
         outgoing  (get-balance-for (last (:period options)) options)
         delta     (ma/minus ((last earnings) 1)
@@ -165,11 +167,11 @@
 
     (println (str "Входящий остаток: " (fc/format-value incoming) "\n"))
 
-    (println "Доходы:")
+    (println "Приход:")
     (println (s/join "\n" (table/formatter earnings)))
     (println "\n")
 
-    (println "Расходы:")
+    (println "Расход:")
     (println (s/join "\n" (table/formatter payments)))
 
     (println "\nИсходящий остаток:" (fc/format-value outgoing))
