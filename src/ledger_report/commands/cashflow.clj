@@ -175,5 +175,5 @@
     (println (s/join "\n" (table/formatter payments)))
 
     (println "\nИсходящий остаток:" (fc/format-value outgoing))
-    (println "\nДоходы    — Расходы  =" (fc/format-value delta))
+    (println "\nПриход    — Расходы  =" (fc/format-value delta))
     (println   "Исходящий — Входящий =" (fc/format-value asset-delta))))
