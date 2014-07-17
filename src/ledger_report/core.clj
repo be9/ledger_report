@@ -44,4 +44,5 @@
     (cond
       (= cmd "cashflow") (cashflow (global-config opts) arguments)
       :else              (println "Unknown command. Available commands: cashflow\n"
-                                  (:summary opts)))))
+                                  (:summary opts))))
+  (System/exit 0))

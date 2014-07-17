@@ -52,9 +52,11 @@
   [command-name argument opts]
   (with-programs [ledger]
     (let [ledger-options (make-command-line opts)
-          cmd            (conj ledger-options command-name argument)]
+          cmd            (flatten (conj ledger-options command-name argument))
+          result         (s/split (apply ledger cmd) #"\n")]
+      result
 
-    (s/split (apply ledger cmd) #"\n"))))
+    )))
 
 ;;
 

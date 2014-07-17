@@ -141,10 +141,10 @@
 
 ;;
 
-
 (def cli-options
   [["-p" "--period=PERIOD" "За какой период показывать" :required true]
-   ["-n" "--no-group"      "Не группировать счета"]])
+   ["-n" "--no-group"      "Не группировать счета"]
+   ["-d" "--debug"         "Отладочная информация"]])
 
 (defn cashflow
   [config args]
