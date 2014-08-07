@@ -8,8 +8,8 @@
                  [org.clojure/core.match "0.2.1"]
                  [clojurewerkz/money "1.6.0"]
                  [me.raynes/conch "0.7.0"]
-                 [clj-time "0.7.0"]
-                 [instaparse "1.3.2"]]
+                 [clj-time "0.8.0"]
+                 [instaparse "1.3.3"]]
   :main ledger-report.core
   :target-path "target/%s"
   :bin { :name "lrpt" }
