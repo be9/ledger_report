@@ -2,8 +2,7 @@
   (:require [clojure.tools.cli               :refer [parse-opts]]
             [ledger-report.commands.cashflow :refer [cashflow]]
             [ledger-report.commands.budget   :refer [budget]]
-            [clojure.java.io                 :as io]
-            [clojure.edn                     :as edn]
+            [ledger-report.tools             :refer :all]
             [clojurewerkz.money.currencies   :as mc])
   (:gen-class))
 
@@ -11,16 +10,6 @@
   [["-f" "--file=FILE"   "Файл ledger"             :default "my.ldg"]
    ["-m" "--meta=FILE"   "Файл с описанием счетов" :default "accounts.edn"]
    ["-p" "--prices=FILE" "Файл с котировками"]])
-
-(defn read-edn
-  "Открывает и читает файл данных filename в формате EDN. Возвращает прочитанную
-   структуру данных или nil."
-  [filename]
-  (try
-    (with-open [infile (java.io.PushbackReader. (io/reader filename))]
-      (edn/read infile))
-    (catch java.io.FileNotFoundException e
-      nil)))
 
 (def empty-metadata
   {
@@ -48,8 +37,9 @@
       :else              (println "Unknown command. Available commands: cashflow, budget\n"
                                   (:summary opts)))))
 
-
 (defn -main
   [& args]
   (apply app args)
+  ; System/exit нужен из-за conch, у которого что-то подвисает при вызове
+  ; внешнего процесса ledger
   (System/exit 0))

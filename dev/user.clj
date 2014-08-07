@@ -15,5 +15,10 @@
   (str (System/getenv "HOME") "/Dropbox/shared/ledger/" basename))
 
 (defn cf
-  [period]
-  (app "-f" (my-ledger-file "my.ldg") "-m" (my-ledger-file "accounts.edn") "cashflow" "-p" period))
+  [& args]
+  (apply app "-f" (my-ledger-file "my.ldg") "-m" (my-ledger-file "accounts.edn") "cashflow" "-p" args))
+
+(defn bdg
+  []
+  (app "-f" (my-ledger-file "my.ldg") "-m" (my-ledger-file "accounts.edn") "budget" "-d" (my-ledger-file "budgets/2014_07.edn")))
+
