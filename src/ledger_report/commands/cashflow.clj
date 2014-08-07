@@ -4,46 +4,21 @@
             [clojure.string             :as s]
             [clojurewerkz.money.amounts :as ma]
             [ledger-report.ledger-interface :as ledger]
+            [ledger-report.tools            :refer :all]
             [ledger-report.dates :as dates]
             [ledger-report.formatters.currency :as fc]
+            [ledger-report.crunching.register :as register]
             [ledger-report.formatters.table :as table]))
 
 (defn- register-results
-  "Возвращает результат, возвращённый ledger, как вектор строк.
-   Каждая строка имеет формат:
+  [options]
 
-   имя счёта\tсумма"
-  [opts]
-
-  (ledger/register
-    ((opts :metadata) :assets_for_cashflow)
-    {
-     :file   (:file opts)
-     :period (:period opts)
-     :prices (:prices opts)
-     :related true
-     :register-format "%(display_account)\t%(quantity(market(display_amount,d,\"р\")))\n"
-     :display "not has_tag(\"SkipCashFlow\")"
-     }))
-;;
-
-(defn- make-currency-amount
-  [s currency]
-  (ma/amount-of currency
-                (Float/parseFloat s)
-                java.math.RoundingMode/HALF_UP))
-
-(defn- parse-register-results
-  "Возвращает вектор разобранных результатов ledger, где каждой строке
-   соответствует: [[Расходы То Се] 123.45]"
-  [bare-results currency]
-  (map (fn [line]
-         (let [[account value] (s/split line    #"\t")
-                acc-parts      (s/split account #":")
-                value          (make-currency-amount value currency)]
-            [acc-parts value]))
-       bare-results))
-
+  (register/parsed-cashflow
+    ((options :metadata) :assets_for_cashflow)
+    (:file options)
+    (:period options)
+    (:prices options)
+    (:currency options)))
 ;;
 
 (defn- group-name-for-account
@@ -152,8 +127,7 @@
         options   (merge config (:options options))
         options   (conj options
                         [:period (dates/parse-period (:period options))])
-        results   (parse-register-results (register-results options)
-                                          (:currency config))
+        results   (register-results options)
         metadata  (config :metadata)
         collapser (if (:no-group options) collapse-by-name collapse-by-group)
         zero      (ma/amount-of (:currency config) 0)

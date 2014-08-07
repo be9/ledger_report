@@ -1,7 +1,8 @@
 (ns ledger-report.commands.budget
-  (:require [clojure.tools.cli   :refer [parse-opts]]
-            [ledger-report.tools :refer :all]
-            [ledger-report.dates :as dates]
+  (:require [clojure.tools.cli                :refer [parse-opts]]
+            [ledger-report.tools              :refer :all]
+            [ledger-report.dates              :as dates]
+            [ledger-report.crunching.register :as register]
             ;[clojure.java.io            :as io]
             ;[clojure.string             :as s]
             ;[clojurewerkz.money.amounts :as ma]
@@ -29,14 +30,25 @@
         options     (merge config (:options parsed-opts))
         args        (:arguments parsed-opts)
         ;_           (println options args)
-        
         ]
     (if (not= (count args) 1)
       (println "Требуется указать имя файла с данными бюджета")
 
-      (let [budget-data (read-budget-data (first args))]
-        (println budget-data)
-        (println (budget-period budget-data))
+      (let [budget-data     (read-budget-data (first args))
+            budget-cashflow ((budget-data :budgets) :cashflow)
+            cashflow        (register/parsed-cashflow
+                              (budget-cashflow :accounts)
+                              (:file options)
+                              (budget-period budget-data)
+                              (:prices options)
+                              (:currency options)) 
+            
+            ]
+        ;(println budget-data)
+        ;(println (budget-period budget-data))
+        (println cashflow)
+
+
         )
 
       ) ))
