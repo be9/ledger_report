@@ -17,5 +17,6 @@
                        :main ledger-report.core
                        :target-path "target/" }
              :dev {:source-paths ["dev"]
+                   :main user
                    :dependencies [[org.clojure/tools.namespace "0.2.5"]
                                   [org.clojure/java.classpath "0.2.2"]]}})

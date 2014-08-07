@@ -1,6 +1,7 @@
 (ns ledger-report.core
   (:require [clojure.tools.cli               :refer [parse-opts]]
             [ledger-report.commands.cashflow :refer [cashflow]]
+            [ledger-report.commands.budget   :refer [budget]]
             [clojure.java.io                 :as io]
             [clojure.edn                     :as edn]
             [clojurewerkz.money.currencies   :as mc])
@@ -36,13 +37,19 @@
     (assoc options :metadata (or metadata empty-metadata)
                    :currency mc/RUB)))
 
-(defn -main
+(defn app
   [& args]
   (let [opts      (parse-opts args cli-options :in-order true)
         arguments (:arguments opts)
         cmd       (first arguments)]
     (cond
-      (= cmd "cashflow") (cashflow (global-config opts) arguments)
-      :else              (println "Unknown command. Available commands: cashflow\n"
-                                  (:summary opts))))
+      (= cmd "cashflow") (cashflow (global-config opts) (rest arguments))
+      (= cmd "budget")   (budget   (global-config opts) (rest arguments))
+      :else              (println "Unknown command. Available commands: cashflow, budget\n"
+                                  (:summary opts)))))
+
+
+(defn -main
+  [& args]
+  (apply app args)
   (System/exit 0))
