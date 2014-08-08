@@ -21,43 +21,17 @@
     (:currency options)))
 ;;
 
-(defn- group-name-for-account
-  "Находит для account соответствие в account-map по префиксу.
-   Если ничего не найдено, возвращает default-name"
-  [account account-map default-name]
-
-  (loop [prefix account]
-    (if (empty? prefix)
-      default-name
-      (if-let [group (account-map prefix)]
-        group
-        (recur (pop prefix))))))    ; Пытаемся найти максимальный префикс
-
-(defn- collapse-accounts
-  "Группирует данные по отдельным счетам в один большой map. grouper возвращает имя
-   группы для каждого счёта"
-  [data grouper]
-
-  (reduce
-    (fn [accounts [acc value]]
-      (let [group (grouper acc)]
-        (if-let [accum (accounts group)]
-          (assoc accounts group (ma/plus accum value))
-          (assoc accounts group value))))
-    {}
-    data))
-
 (defn- collapse-by-group
   [data account-map default-name]
 
-  (let [grouper (fn [x] (group-name-for-account x account-map default-name))]
-    (collapse-accounts data grouper)))
+  (let [grouper (fn [x] (register/map-account-name x account-map default-name))]
+    (register/group-account-data grouper data)))
 
 (defn- collapse-by-name
   [data account-map default-name]
 
   (let [grouper (fn [x] (s/join ":" x))]
-    (collapse-accounts data grouper)))
+    (register/group-account-data grouper data)))
 
 (defn- earnings-data
   "Отбирает из данных поступления, группирует их по статьям и возвращает map
