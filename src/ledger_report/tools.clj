@@ -17,7 +17,9 @@
 ;;
 
 (defn make-currency-amount
-  [s currency]
+  [value currency]
   (ma/amount-of currency
-                (Float/parseFloat s)
+                (if (string? value)
+                  (Float/parseFloat value)
+                  value)
                 java.math.RoundingMode/HALF_UP))

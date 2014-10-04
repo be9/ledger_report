@@ -22,3 +22,10 @@
   []
   (app "-f" (my-ledger-file "my.ldg") "-m" (my-ledger-file "accounts.edn") "budget" "-d" (my-ledger-file "budgets/2014_07.edn")))
 
+(defn bdgaug
+  []
+  (app "-f" (my-ledger-file "my.ldg") "-m" (my-ledger-file "accounts.edn") "budget" "-d" (my-ledger-file "budgets/2014_08.edn")))
+
+(defn bdgsep
+  []
+  (app "-f" (my-ledger-file "my.ldg") "-m" (my-ledger-file "accounts.edn") "budget" "-d" (my-ledger-file "budgets/2014_09.edn")))

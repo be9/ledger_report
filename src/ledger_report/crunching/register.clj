@@ -59,13 +59,14 @@
   с конца. Если ничего не найдено, возвращает nil, в противном случае
   возвращает найденный ключ [k1 k2 ... km], где m <= n."
   [m k]
-
-  (loop [prefix k]
-    (if (empty? prefix)
-      nil
-      (if (contains? m prefix)
-        prefix
-        (recur (pop prefix))))))     ; Пытаемся найти максимальный префикс 
+  (if (string? k)
+    (if (contains? m k) k nil)
+    (loop [prefix k]
+      (if (empty? prefix)
+        nil
+        (if (contains? m prefix)
+          prefix
+          (recur (pop prefix)))))))     ; Пытаемся найти максимальный префикс 
 
 (defn map-account-name
   "Находит для account соответствие в account-map по префиксу.

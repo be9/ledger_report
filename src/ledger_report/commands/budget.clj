@@ -8,11 +8,8 @@
             [clojurewerkz.money.amounts :as ma]
             ;[ledger-report.ledger-interface :as ledger]
             ;[ledger-report.formatters.currency :as fc]
-            ;[ledger-report.formatters.table :as table]
+            [ledger-report.formatters.table :as table]
             ))
-
-(def cli-options
-  [["-d" "--debug"         "Отладочная информация"]])
 
 (defn read-budget-data
   "Читает данные о бюджете из файла"
@@ -36,7 +33,6 @@
   [data]
   (filter #(ma/positive? (% 1)) data))
 
-
 (defn map-items
   "Превращает данные о доходах или расходах в map, трансформируя имена с учётом
   mapping. Если отображение не находится, в map попадает имя счёта в форме
@@ -59,18 +55,52 @@
   (let [; Сформируем структуру данных в итоговом виде
         initial (zipmap (keys budget)
                         (map (fn [v] { :planned v, :real 0 })
-                             (vals budget)))]
-    ; reduce-kv
+                             (vals budget)))
+
+        initial (merge {:other {:planned 0, :real 0}} initial)]
     (reduce-kv
       (fn [[result remainder] acc v]
         (if-let [k (register/find-longest-prefix result acc)]
           ; Ключ найден. Прибавляем значение
-          [(update-in result [k :real] + (.getAmount v)) remainder]
-          [result (assoc remainder acc v)]))
+          [(update-in result [k :real]      + (.getAmount v)) remainder]
+          ; Ключ не найден. Кладём в remainder
+          [(update-in result [:other :real] + (.getAmount v)) (assoc remainder acc v)]))
       [initial {}]
       item-map)))
 
+(defn- ratio
+  [x y]
+  (if (zero? y) 0 (/ (double x) y)))
+
+(defn process-budgeting-results
+  "Сортирует results по убыванию ключа planned, вычисляет итог и процентное соотношение.
+  Возвращает вектор векторов [name value-planned value-real percentage].
+  Последним идет name :total"
+  [results currency]
+
+  (let [planned-total (reduce + (map :planned (vals results)))
+        real-total    (reduce + (map :real    (vals results)))
+
+        ; сортировка по убывающей сумме
+        sorted       (sort-by #(- (:planned (% 1))) results)]
+
+    (conj
+      (mapv (fn [[group-name {real :real, planned :planned}]]
+              [group-name
+               (make-currency-amount planned currency)
+               (make-currency-amount real currency)
+               (ratio real planned)])
+            sorted)
+      [:total
+       (make-currency-amount planned-total currency)
+       (make-currency-amount real-total currency)
+       (ratio real-total planned-total)])))
+
 ;;;;;
+
+(def cli-options
+  [["-d" "--debug"     "Отладочная информация"]])
+  [["-r" "--remainder" "Детально показать то, что не попало в бюджет"]]
 
 (defn budget
   [config args]
@@ -93,13 +123,29 @@
 
             expense-items (map-items (expenses-seq cashflow) (:mapping budget-data))
             expense-budget (budget-cashflow :expenses)
+            [expense-results expense-rem] (apply-budget expense-items expense-budget)
+
+
+            income-items (map-items (incomes-seq cashflow) (:mapping budget-data))
+            income-budget (budget-cashflow :incomes)
+            [income-results income-rem] (apply-budget income-items income-budget)
+
+
             ]
         ;(println budget-data)
         ;(println (budget-period budget-data))
         ;(println (map-items (earnings-seq cashflow) (:mapping budget-data)))
-        (println (apply-budget expense-items expense-budget))
+        (println
+          (s/join "\n" (table/budget-table-formatter
+                         (process-budgeting-results expense-results (:currency options)))))
 
+        (println expense-rem)
 
+        (println
+          (s/join "\n" (table/budget-table-formatter
+                         (process-budgeting-results income-results (:currency options)))))
+
+        (println income-rem)
         )
 
       ) ))

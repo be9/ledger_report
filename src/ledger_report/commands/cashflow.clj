@@ -116,11 +116,11 @@
     (println (str "Входящий остаток: " (fc/format-value incoming) "\n"))
 
     (println "Приход:")
-    (println (s/join "\n" (table/formatter earnings)))
+    (println (s/join "\n" (table/percentage-formatter earnings)))
     (println "\n")
 
     (println "Расход:")
-    (println (s/join "\n" (table/formatter payments)))
+    (println (s/join "\n" (table/percentage-formatter payments)))
 
     (println "\nИсходящий остаток:" (fc/format-value outgoing))
     (println "\nПриход    — Расходы  =" (fc/format-value delta))
